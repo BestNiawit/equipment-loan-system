@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import EquipmentCard from '@/components/equipment/EquipmentCard'
+import LoanModal from '@/components/loans/LoanModal'
 import { Equipment, Category, EquipmentStatus } from '@/lib/types'
 
 interface Props {
@@ -19,10 +21,12 @@ const statusOptions: { value: EquipmentStatus | 'all'; label: string }[] = [
 ]
 
 export default function EquipmentListClient({ equipment, categories }: Props) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [borrowTarget, setBorrowTarget] = useState<Equipment | null>(null)
 
   const filtered = useMemo(() => {
     return equipment.filter(e => {
@@ -142,9 +146,23 @@ export default function EquipmentListClient({ equipment, categories }: Props) {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {filtered.map((eq, i) => (
-            <EquipmentCard key={eq.id} equipment={eq} index={i} />
+            <EquipmentCard
+              key={eq.id}
+              equipment={eq}
+              index={i}
+              onBorrow={setBorrowTarget}
+            />
           ))}
         </div>
+      )}
+
+      {borrowTarget && (
+        <LoanModal
+          equipment={borrowTarget}
+          isOpen={!!borrowTarget}
+          onClose={() => setBorrowTarget(null)}
+          onSuccess={() => { setBorrowTarget(null); router.refresh() }}
+        />
       )}
     </div>
   )

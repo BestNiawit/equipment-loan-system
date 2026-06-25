@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Package, Tag, Clock, User } from 'lucide-react'
+import { Package, Tag, Clock, User, ArrowDownToLine } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Equipment } from '@/lib/types'
 import StatusBadge from './StatusBadge'
@@ -10,13 +10,14 @@ import StatusBadge from './StatusBadge'
 interface EquipmentCardProps {
   equipment: Equipment
   index?: number
+  onBorrow?: (equipment: Equipment) => void
 }
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
 }
 
-export default function EquipmentCard({ equipment, index = 0 }: EquipmentCardProps) {
+export default function EquipmentCard({ equipment, index = 0, onBorrow }: EquipmentCardProps) {
   const router = useRouter()
   const loan = equipment.active_loan
   const isOverdue = loan && new Date(loan.due_date) < new Date()
@@ -88,10 +89,20 @@ export default function EquipmentCard({ equipment, index = 0 }: EquipmentCardPro
           </div>
         )}
 
-        {/* Available */}
+        {/* Available — quick borrow button */}
         {equipment.status === 'available' && (
           <div className="pt-1.5 border-t border-slate-100 dark:border-slate-700">
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✓ ว่าง พร้อมยืม</p>
+            {onBorrow ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); onBorrow(equipment) }}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition-colors"
+              >
+                <ArrowDownToLine className="w-3.5 h-3.5" />
+                Borrow
+              </button>
+            ) : (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✓ ว่าง พร้อมยืม</p>
+            )}
           </div>
         )}
       </div>

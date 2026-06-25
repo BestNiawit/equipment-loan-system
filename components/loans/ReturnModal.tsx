@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Loader2, Star, Camera, X, ImagePlus, ScanLine, CheckCircle2, ShieldAlert } from 'lucide-react'
+import { Loader2, Star, Camera, X, ImagePlus, ScanLine, CheckCircle2, ShieldAlert, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 import Modal from '@/components/ui/Modal'
 import { Equipment, Loan } from '@/lib/types'
@@ -32,6 +32,9 @@ interface PhotoSlot {
 export default function ReturnModal({ equipment, loan, isOpen, onClose, onSuccess }: ReturnModalProps) {
   const [verified, setVerified]   = useState(false)
   const [scanning, setScanning]   = useState(false)
+  const [verifyMode, setVerifyMode] = useState<'scan' | 'type'>('scan')
+  const [serialInput, setSerialInput] = useState('')
+  const [serialError, setSerialError] = useState('')
   const [condition, setCondition] = useState<string>('good')
   const [note, setNote]           = useState('')
   const [loading, setLoading]     = useState(false)
@@ -40,7 +43,7 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
     { label: 'รูปด้านหลัง', file: null, preview: null },
   ])
 
-  const inputRefs  = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+  const inputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null)
 
   // Reset state when modal opens (revoke any leftover object URLs from previous open)
@@ -48,6 +51,9 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
     if (!isOpen) return
     setVerified(false)
     setScanning(false)
+    setVerifyMode('scan')
+    setSerialInput('')
+    setSerialError('')
     setCondition('good')
     setNote('')
     setPhotos(prev => {
@@ -118,6 +124,15 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
     setScanning(false)
   }
 
+  function handleVerifyBySerial() {
+    const val = serialInput.trim()
+    if (!val) { setSerialError('กรุณาพิมพ์ serial number'); return }
+    if (!isMatchingCode(val)) { setSerialError('Serial ไม่ตรงกับเครื่องนี้ — ลองใหม่'); return }
+    setSerialError('')
+    setVerified(true)
+    toast.success('ยืนยันตัวเครื่องสำเร็จ ✓')
+  }
+
   function handlePhoto(idx: 0 | 1, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -158,6 +173,10 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
   }
 
   async function handleReturn() {
+    if (!photos.some(p => p.file)) {
+      toast.error('กรุณาแนบรูปถ่ายอย่างน้อย 1 รูปก่อนคืน')
+      return
+    }
     setLoading(true)
     const imageUrls = await uploadPhotos()
 
@@ -206,7 +225,7 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
           </p>
         </div>
 
-        {/* ── STEP 1: Verify by scanning ── */}
+        {/* ── STEP 1: Verify ── */}
         {!verified ? (
           <div className="space-y-3">
             <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
@@ -214,33 +233,84 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
               <div>
                 <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-200">ยืนยันตัวเครื่องก่อนคืน</p>
                 <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
-                  สแกน QR code หรือ barcode ของ <strong>{equipment.name}</strong> เพื่อยืนยันว่ามีเครื่องอยู่ในมือ
+                  สแกน QR / barcode หรือพิมพ์ serial ของ <strong>{equipment.name}</strong>
                 </p>
               </div>
             </div>
 
-            {scanning && (
-              <div className="rounded-2xl overflow-hidden border border-indigo-200 dark:border-indigo-800 bg-black relative">
-                <div id="return-verify-scanner" className="w-full" />
-                <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-white/70">
-                  ส่องกล้องที่ QR / barcode ของเครื่องนี้
-                </p>
+            {/* Mode toggle */}
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              <button
+                onClick={() => { setVerifyMode('scan'); stopScan() }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                  verifyMode === 'scan'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <ScanLine className="w-4 h-4" /> สแกน
+              </button>
+              <button
+                onClick={() => { setVerifyMode('type'); stopScan() }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                  verifyMode === 'type'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <Keyboard className="w-4 h-4" /> พิมพ์ Serial
+              </button>
+            </div>
+
+            {verifyMode === 'scan' ? (
+              <>
+                {scanning && (
+                  <div className="rounded-2xl overflow-hidden border border-indigo-200 dark:border-indigo-800 bg-black relative">
+                    <div id="return-verify-scanner" className="w-full" />
+                    <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-white/70">
+                      ส่องกล้องที่ QR / barcode ของเครื่องนี้
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={scanning ? stopScan : startScan}
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition-all ${
+                    scanning
+                      ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  }`}
+                >
+                  <ScanLine className="w-4 h-4" />
+                  {scanning ? 'หยุดสแกน' : 'สแกนเพื่อยืนยัน'}
+                </button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={serialInput}
+                  onChange={(e) => { setSerialInput(e.target.value); setSerialError('') }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyBySerial()}
+                  placeholder={equipment.serial_no ? `Serial: ${equipment.serial_no}` : 'พิมพ์ serial number'}
+                  className="input-base"
+                  autoFocus
+                />
+                {serialError && <p className="text-xs text-rose-500">{serialError}</p>}
+                <button
+                  onClick={handleVerifyBySerial}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition-all"
+                >
+                  ยืนยัน
+                </button>
               </div>
             )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={scanning ? stopScan : startScan}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition-all ${
-                  scanning
-                    ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                }`}
-              >
-                <ScanLine className="w-4 h-4" />
-                {scanning ? 'หยุดสแกน' : 'สแกนเพื่อยืนยัน'}
-              </button>
-            </div>
+            <button
+              onClick={() => setVerified(true)}
+              className="w-full text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1 transition-colors"
+            >
+              ข้ามการยืนยัน
+            </button>
           </div>
 
         ) : (
@@ -255,8 +325,8 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
             <div>
               <label className="label-base flex items-center gap-1.5">
                 <Camera className="w-4 h-4 text-slate-400" />
-                แนบรูปถ่าย
-                <span className="text-slate-400 font-normal text-xs">(ไม่บังคับ)</span>
+                แนบรูปถ่าย <span className="text-rose-500">*</span>
+                <span className="text-slate-400 font-normal text-xs">(อย่างน้อย 1 รูป)</span>
               </label>
               <div className="grid grid-cols-2 gap-3 mt-2">
                 {photos.map((slot, i) => (
@@ -275,10 +345,10 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
                       <button type="button" onClick={() => inputRefs[i].current?.click()}
                         className="w-full aspect-[4/3] rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 bg-slate-50 dark:bg-slate-800/50 flex flex-col items-center justify-center gap-2 transition-colors">
                         <ImagePlus className="w-6 h-6 text-slate-400" />
-                        <span className="text-xs text-slate-400">ถ่ายรูป</span>
+                        <span className="text-xs text-slate-400">ถ่ายรูป / แนบรูป</span>
                       </button>
                     )}
-                    <input ref={inputRefs[i]} type="file" accept="image/*" capture="environment"
+                    <input ref={inputRefs[i]} type="file" accept="image/*"
                       onChange={(e) => handlePhoto(i as 0 | 1, e)} className="hidden" />
                   </div>
                 ))}
@@ -320,7 +390,7 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
 
             <div className="flex gap-3 pt-1">
               <button onClick={onClose} className="flex-1 btn-secondary" disabled={loading}>ยกเลิก</button>
-              <button onClick={handleReturn} disabled={loading}
+              <button onClick={handleReturn} disabled={loading || !photos.some(p => p.file)}
                 className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-xl py-3 transition-all disabled:opacity-60">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'ยืนยันการคืน'}
               </button>
