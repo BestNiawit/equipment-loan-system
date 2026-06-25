@@ -14,7 +14,7 @@
     "docker:reset": "docker compose down -v && docker compose up -d",
     "docker:setup": "bash scripts/setup-db.sh",
     "setup:local": "cp .env.local.docker .env.local && echo 'Done! Run: npm run docker:reset then npm run docker:setup then npm run dev'",
-    "pages:build": "npx @opennextjs/cloudflare build && cp .open-next/worker.js .open-next/assets/_worker.js",
+    "pages:build": "npx @opennextjs/cloudflare build && cp .open-next/worker.js .open-next/assets/_worker.js && cp -r .open-next/cloudflare .open-next/assets/ && cp -r .open-next/middleware .open-next/assets/ && cp -r .open-next/server-functions .open-next/assets/",
     "pages:deploy": "wrangler pages deploy .open-next/assets",
     "pages:preview": "wrangler pages dev .open-next/assets",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
