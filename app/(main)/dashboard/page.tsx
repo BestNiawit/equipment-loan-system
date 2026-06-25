@@ -1,4 +1,3 @@
-export const runtime = 'edge'
 
 import Link from 'next/link'
 import { Package, CheckCircle2, Clock, AlertCircle, Wrench, Plus, QrCode, ArrowRight } from 'lucide-react'
