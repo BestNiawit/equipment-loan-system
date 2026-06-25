@@ -1,0 +1,48 @@
+{
+  "name": "equipment-loan-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:logs:auth": "docker compose logs -f auth",
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "docker:setup": "bash scripts/setup-db.sh",
+    "setup:local": "cp .env.local.docker .env.local && echo 'Done! Run: npm run docker:reset then npm run docker:setup then npm run dev'",
+    "pages:build": "npx vercel build --yes && npx @cloudflare/next-on-pages --skip-build",
+    "pages:deploy": "wrangler pages deploy",
+    "pages:preview": "wrangler pages dev"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.48.1",
+    "framer-motion": "^11.15.0",
+    "html5-qrcode": "^2.3.8",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.2",
+    "next-themes": "^0.4.4",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0",
+    "sonner": "^1.7.3"
+  },
+  "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "^15.5.2",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5",
+    "wrangler": "^4.104.0"
+  }
+}
