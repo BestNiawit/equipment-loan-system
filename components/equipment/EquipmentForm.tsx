@@ -27,6 +27,7 @@ export default function EquipmentForm({ categories, userId, existing }: Equipmen
   const [serialNo, setSerialNo] = useState(existing?.serial_no ?? '')
   const [categoryId, setCategoryId] = useState(existing?.category_id ?? '')
   const [description, setDescription] = useState(existing?.description ?? '')
+  const isStatusLocked = existing?.status === 'borrowed' || existing?.status === 'overdue'
   const [status, setStatus] = useState<'available' | 'maintenance'>(
     existing?.status === 'maintenance' ? 'maintenance' : 'available'
   )
@@ -148,7 +149,8 @@ export default function EquipmentForm({ categories, userId, existing }: Equipmen
       serial_no: serialNo.trim() || null,
       category_id: categoryId || null,
       description: description.trim() || null,
-      status,
+      // Preserve current status when equipment is borrowed/overdue — don't let edit reset it
+      status: isStatusLocked ? existing!.status : status,
       image_url: imageUrl,
       updated_at: new Date().toISOString(),
     }
@@ -325,23 +327,30 @@ export default function EquipmentForm({ categories, userId, existing }: Equipmen
 
       {/* Status */}
       <div>
-        <label className="label-base">Initial Status</label>
-        <div className="grid grid-cols-2 gap-2">
-          {statusOptions.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setStatus(opt.value)}
-              className={`py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                status === opt.value
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <label className="label-base">{existing ? 'Status' : 'Initial Status'}</label>
+        {isStatusLocked ? (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-400">
+            <span className="font-medium capitalize">{existing!.status}</span>
+            <span className="text-amber-500">— ไม่สามารถเปลี่ยนได้ขณะถูกยืม</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {statusOptions.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setStatus(opt.value)}
+                className={`py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                  status === opt.value
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Submit */}

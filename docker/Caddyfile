@@ -1,0 +1,30 @@
+{$CADDY_HOST} {
+  tls internal
+
+  # Supabase API — Kong handles internal path routing
+  handle /rest/v1/* {
+    reverse_proxy kong:8000
+  }
+  handle /auth/v1/* {
+    reverse_proxy kong:8000
+  }
+  handle /storage/v1/* {
+    reverse_proxy kong:8000
+  }
+
+  # Next.js app
+  handle {
+    reverse_proxy web:3000
+  }
+}
+
+# HTTP — serve cert for download before trust is established, redirect everything else
+http://{$CADDY_HOST} {
+  handle /caddy-root-ca.crt {
+    root * /data/caddy/pki/authorities/local
+    rewrite * /root.crt
+    header Content-Type application/x-x509-ca-cert
+    file_server
+  }
+  redir https://{host}{uri} permanent
+}

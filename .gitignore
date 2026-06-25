@@ -17,6 +17,7 @@
 # misc
 .DS_Store
 *.pem
+caddy-root-ca.crt
 
 # debug
 npm-debug.log*

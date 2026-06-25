@@ -13,7 +13,6 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: postgres
       PGPASSWORD: postgres
-      # Required by supabase/postgres to set up internal JWT roles
       JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
       JWT_EXP: 3600
     volumes:
@@ -34,10 +33,10 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: http://localhost:8000
+      API_EXTERNAL_URL: https://${CADDY_HOST:-mac-mini.local}
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:postgres@db:5432/postgres
-      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_SITE_URL: https://${CADDY_HOST:-mac-mini.local}
       GOTRUE_DISABLE_SIGNUP: "false"
       GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_JWT_AUD: authenticated
@@ -93,7 +92,7 @@ services:
     volumes:
       - storage-data:/var/lib/storage
 
-  # ─── Kong API Gateway (single entrypoint :8000) ───────────────────────────
+  # ─── Kong API Gateway ─────────────────────────────────────────────────────
   kong:
     image: kong:2.8.1
     restart: unless-stopped
@@ -101,7 +100,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "8000:8000"   # exposed for local dev (npm run dev)
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -114,9 +113,40 @@ services:
     volumes:
       - ./docker/kong.yml:/home/kong/kong.yml:ro
 
+  # ─── Next.js App ─────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: https://${CADDY_HOST:-mac-mini.local}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+    restart: unless-stopped
+    environment:
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─── Caddy (HTTPS reverse proxy) ─────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      CADDY_HOST: ${CADDY_HOST:-mac-mini.local}
+    depends_on:
+      - web
+      - kong
+
   # ─── pgweb — DB admin UI ──────────────────────────────────────────────────
   pgweb:
-    image: sosedoff/pgweb:latest
+    image: sosedoff/pgweb:0.15.0
     restart: unless-stopped
     depends_on:
       db:
@@ -129,3 +159,5 @@ services:
 volumes:
   db-data:
   storage-data:
+  caddy-data:
+  caddy-config:

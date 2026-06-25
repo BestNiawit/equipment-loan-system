@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Package, Moon, Sun, Bell, LayoutDashboard, History, User, QrCode } from 'lucide-react'
+import { Package, Moon, Sun, LayoutDashboard, History, User, QrCode, HelpCircle } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import HelpModal from '@/components/HelpModal'
 
 const pageLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -16,12 +18,14 @@ const pageLabels: Record<string, string> = {
 export default function TopBar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const [showHelp, setShowHelp] = useState(false)
 
   const label = Object.entries(pageLabels).find(([path]) =>
     pathname === path || pathname.startsWith(path + '/')
   )?.[1] ?? 'EquipVault'
 
   return (
+    <>
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800">
       <div className="max-w-screen-lg mx-auto px-4 h-14 flex items-center justify-between">
         {/* Left: logo (desktop) / page title (mobile) */}
@@ -62,8 +66,15 @@ export default function TopBar() {
           })}
         </nav>
 
-        {/* Right: theme toggle */}
+        {/* Right: help + theme toggle */}
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowHelp(true)}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            aria-label="Help"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
@@ -74,5 +85,8 @@ export default function TopBar() {
         </div>
       </div>
     </header>
+
+    <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+    </>
   )
 }

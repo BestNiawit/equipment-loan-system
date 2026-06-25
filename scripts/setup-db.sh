@@ -42,13 +42,23 @@ until curl -sf "http://localhost:8000/auth/v1/health" > /dev/null 2>&1; do
 done
 echo -e "\n✅ Auth service ready"
 
-# ── 5. Apply app schema ───────────────────────────────────────────────────────
-echo "📦 Applying app schema..."
-$DC exec -T db psql -U supabase_admin -d postgres \
-  < "$PROJECT_DIR/supabase/schema.sql"
-echo "✅ Schema applied"
+# ── 5. Enable pg_cron (supabase/postgres image ships with it pre-installed) ───
+echo "⏱  Enabling pg_cron..."
+$DC exec -T db psql -U supabase_admin -d postgres <<'SQL'
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+SQL
+echo "✅ pg_cron enabled"
 
-# ── 6. Create storage bucket (after storage migrations have run) ──────────────
+# ── 6. Apply migrations in order ─────────────────────────────────────────────
+echo "📦 Applying schema + migrations..."
+for sql_file in schema.sql migration_v2.sql migration_v3.sql migration_v4.sql; do
+  echo "   → $sql_file"
+  $DC exec -T db psql -U supabase_admin -d postgres \
+    < "$PROJECT_DIR/supabase/$sql_file"
+done
+echo "✅ All migrations applied"
+
+# ── 7. Create storage bucket (after storage migrations have run) ──────────────
 echo "🗂  Creating storage bucket..."
 $DC exec -T db psql -U supabase_admin -d postgres <<'SQL'
 INSERT INTO storage.buckets (id, name, public)

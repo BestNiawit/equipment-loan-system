@@ -5,7 +5,6 @@ import { CalendarDays, User, Phone, StickyNote, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Modal from '@/components/ui/Modal'
 import { Equipment } from '@/lib/types'
-import { createClient } from '@/lib/supabase/client'
 
 interface LoanModalProps {
   equipment: Equipment
@@ -14,13 +13,16 @@ interface LoanModalProps {
   onSuccess: () => void
 }
 
+function getDefaultDue() {
+  return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+}
+
 export default function LoanModal({ equipment, isOpen, onClose, onSuccess }: LoanModalProps) {
   const today = new Date().toISOString().split('T')[0]
-  const defaultDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   const [borrowerName, setBorrowerName] = useState('')
   const [borrowerContact, setBorrowerContact] = useState('')
-  const [dueDate, setDueDate] = useState(defaultDue)
+  const [dueDate, setDueDate] = useState(getDefaultDue)
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -29,7 +31,7 @@ export default function LoanModal({ equipment, isOpen, onClose, onSuccess }: Loa
     setBorrowerName('')
     setBorrowerContact('')
     setNote('')
-    setDueDate(defaultDue)
+    setDueDate(getDefaultDue())
   }
 
   async function handleBorrow() {
@@ -43,32 +45,24 @@ export default function LoanModal({ equipment, isOpen, onClose, onSuccess }: Loa
     }
 
     setLoading(true)
-    const supabase = createClient()
 
-    const { error: loanError } = await supabase.from('loans').insert({
-      equipment_id: equipment.id,
-      borrower_id: null,
-      borrower_name: borrowerName.trim(),
-      borrower_contact: borrowerContact.trim() || null,
-      borrowed_at: new Date().toISOString(),
-      due_date: new Date(dueDate + 'T23:59:59').toISOString(),
-      note: note.trim() || null,
-      status: 'active',
+    const res = await fetch('/api/loans/borrow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        equipment_id:      equipment.id,
+        equipment_name:    equipment.name,
+        serial_no:         equipment.serial_no,
+        borrower_name:     borrowerName,
+        borrower_contact:  borrowerContact,
+        due_date:          dueDate,
+        note,
+      }),
     })
 
-    if (loanError) {
-      toast.error('Failed to create loan record')
-      setLoading(false)
-      return
-    }
-
-    const { error: statusError } = await supabase
-      .from('equipment')
-      .update({ status: 'borrowed', updated_at: new Date().toISOString() })
-      .eq('id', equipment.id)
-
-    if (statusError) {
-      toast.error('Failed to update equipment status')
+    if (!res.ok) {
+      const { error } = await res.json()
+      toast.error(error ?? 'Failed to borrow equipment')
       setLoading(false)
       return
     }

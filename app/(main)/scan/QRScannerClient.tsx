@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, CheckCircle2, AlertCircle, QrCode, Search, Loader2 } from 'lucide-react'
+import { Camera, CheckCircle2, AlertCircle, QrCode, Search, Loader2, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { Equipment } from '@/lib/types'
 
 type ScanStatus = 'idle' | 'scanning' | 'found' | 'not-found' | 'error'
 
@@ -14,6 +15,11 @@ export default function QRScannerClient() {
   const [scannedValue, setScannedValue] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [searching, setSearching] = useState(false)
+
+  // Manual search state
+  const [query, setQuery] = useState('')
+  const [manualSearching, setManualSearching] = useState(false)
+  const [manualResults, setManualResults] = useState<Pick<Equipment, 'id' | 'name' | 'serial_no' | 'status'>[] | null>(null)
 
   async function findEquipment(rawValue: string) {
     setSearching(true)
@@ -44,6 +50,22 @@ export default function QRScannerClient() {
       setStatus('not-found')
     }
     setSearching(false)
+  }
+
+  async function handleManualSearch() {
+    const q = query.trim()
+    if (!q) return
+    setManualSearching(true)
+    setManualResults(null)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('equipment')
+      .select('id, name, serial_no, status')
+      .or(`name.ilike.%${q}%,serial_no.ilike.%${q}%`)
+      .order('name')
+      .limit(10)
+    setManualResults(data ?? [])
+    setManualSearching(false)
   }
 
   async function startScanner() {
@@ -212,6 +234,78 @@ export default function QRScannerClient() {
           Stop Camera
         </button>
       )}
+
+      {/* Manual search */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+          <span className="text-xs text-slate-400 shrink-0">หรือค้นหาด้วยตัวเอง</span>
+          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+        </div>
+
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleManualSearch() }}
+          className="flex gap-2"
+        >
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setManualResults(null) }}
+              placeholder="ชื่ออุปกรณ์ หรือ Serial No."
+              className="input-base pl-9"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!query.trim() || manualSearching}
+            className="btn-primary px-4 shrink-0 disabled:opacity-50"
+          >
+            {manualSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'ค้นหา'}
+          </button>
+        </form>
+
+        {/* Search results */}
+        {manualResults !== null && (
+          manualResults.length === 0 ? (
+            <div className="card p-6 text-center">
+              <Search className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-slate-500">ไม่พบอุปกรณ์</p>
+              <p className="text-xs text-slate-400 mt-1">ลองค้นหาด้วยชื่อหรือ serial อื่น</p>
+            </div>
+          ) : (
+            <div className="card divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+              {manualResults.map((eq) => (
+                <button
+                  key={eq.id}
+                  onClick={() => router.push(`/equipment/${eq.id}`)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors text-left"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{eq.name}</p>
+                    {eq.serial_no && (
+                      <p className="text-xs text-slate-400 font-mono">{eq.serial_no}</p>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                    eq.status === 'available'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                      : eq.status === 'borrowed' || eq.status === 'overdue'
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {eq.status}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )
+        )}
+      </div>
 
       {/* Tips */}
       <div className="card p-4 space-y-1.5">

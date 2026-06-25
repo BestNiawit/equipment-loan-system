@@ -40,13 +40,19 @@ const PRESETS: { value: Preset; label: string }[] = [
 ]
 
 export default function ExportButton() {
-  const [open, setOpen]     = useState(false)
-  const [preset, setPreset] = useState<Preset>('last_month')
-  const [custom, setCustom] = useState(() => getPresetDates('last_month'))
+  const [open, setOpen]       = useState(false)
+  const [preset, setPreset]   = useState<Preset>('last_month')
+  const [custom, setCustom]   = useState(() => getPresetDates('last_month'))
+  const [dateError, setDateError] = useState('')
 
   const dates = preset === 'custom' ? custom : getPresetDates(preset)
 
   function download() {
+    if (dates.from > dates.to) {
+      setDateError('วันที่เริ่มต้องไม่มากกว่าวันสิ้นสุด')
+      return
+    }
+    setDateError('')
     const url = `/api/export/loans?from=${dates.from}&to=${dates.to}`
     const a   = document.createElement('a')
     a.href    = url
@@ -124,6 +130,10 @@ export default function ExportButton() {
             <div className="text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg px-2 py-1.5">
               {dates.from} → {dates.to}
             </div>
+
+            {dateError && (
+              <p className="text-xs text-rose-500">{dateError}</p>
+            )}
 
             <button
               onClick={download}

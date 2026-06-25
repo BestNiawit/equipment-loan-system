@@ -14,7 +14,6 @@ export default async function HistoryPage() {
     : null
   const isAdmin = profile?.role === 'admin'
 
-  // Public: show all loans. Non-admin logged-in users see their own only.
   const query = supabase
     .from('loans')
     .select(`

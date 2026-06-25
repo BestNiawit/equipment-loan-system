@@ -3,22 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
     "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:logs:auth": "docker compose logs -f auth",
-    "docker:reset": "docker compose down -v && docker compose up -d",
+    "docker:logs:web": "docker compose logs -f web",
+    "docker:reset": "docker compose down -v && docker compose up -d --build",
+    "docker:rebuild": "docker compose build web && docker compose up -d web",
     "docker:setup": "bash scripts/setup-db.sh",
-    "setup:local": "cp .env.local.docker .env.local && echo 'Done! Run: npm run docker:reset then npm run docker:setup then npm run dev'",
-    "pages:build": "npx @opennextjs/cloudflare build && cp .open-next/worker.js .open-next/assets/_worker.js && cp -r .open-next/cloudflare .open-next/assets/ && cp -r .open-next/middleware .open-next/assets/ && cp -r .open-next/server-functions .open-next/assets/ && cp -r .open-next/.build .open-next/assets/",
-    "pages:deploy": "wrangler pages deploy .open-next/assets",
-    "pages:preview": "wrangler pages dev .open-next/assets",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "setup:local": "cp .env.local.docker .env.local && echo 'Done! Run: npm run docker:reset then npm run docker:setup'"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
@@ -35,15 +31,12 @@
     "sonner": "^1.7.3"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
-    "esbuild": "^0.28.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5",
-    "wrangler": "^4.104.0"
+    "typescript": "^5"
   }
 }

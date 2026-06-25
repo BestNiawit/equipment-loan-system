@@ -43,18 +43,20 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
   const inputRefs  = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null)
 
-  // Reset state when modal opens
+  // Reset state when modal opens (revoke any leftover object URLs from previous open)
   useEffect(() => {
-    if (isOpen) {
-      setVerified(false)
-      setScanning(false)
-      setCondition('good')
-      setNote('')
-      setPhotos([
+    if (!isOpen) return
+    setVerified(false)
+    setScanning(false)
+    setCondition('good')
+    setNote('')
+    setPhotos(prev => {
+      prev.forEach(p => { if (p.preview) URL.revokeObjectURL(p.preview) })
+      return [
         { label: 'รูปด้านหน้า', file: null, preview: null },
         { label: 'รูปด้านหลัง', file: null, preview: null },
-      ])
-    }
+      ]
+    })
   }, [isOpen])
 
   useEffect(() => {
@@ -120,8 +122,9 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) { toast.error('รูปต้องไม่เกิน 10MB'); return }
-    const preview = URL.createObjectURL(file)
     setPhotos(prev => {
+      if (prev[idx].preview) URL.revokeObjectURL(prev[idx].preview!)
+      const preview = URL.createObjectURL(file)
       const next = [...prev] as [PhotoSlot, PhotoSlot]
       next[idx] = { ...next[idx], file, preview }
       return next
@@ -130,6 +133,7 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
 
   function removePhoto(idx: 0 | 1) {
     setPhotos(prev => {
+      if (prev[idx].preview) URL.revokeObjectURL(prev[idx].preview!)
       const next = [...prev] as [PhotoSlot, PhotoSlot]
       next[idx] = { ...next[idx], file: null, preview: null }
       return next
@@ -155,22 +159,26 @@ export default function ReturnModal({ equipment, loan, isOpen, onClose, onSucces
 
   async function handleReturn() {
     setLoading(true)
-    const supabase = createClient()
-    const now = new Date().toISOString()
     const imageUrls = await uploadPhotos()
 
-    const { error: loanError } = await supabase.from('loans').update({
-      returned_at: now,
-      condition_on_return: condition,
-      return_images: imageUrls,
-      note: note || loan.note,
-      status: 'returned',
-    }).eq('id', loan.id)
+    const res = await fetch('/api/loans/return', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        loan_id:       loan.id,
+        equipment_id:  equipment.id,
+        condition,
+        return_images: imageUrls,
+        note:          note || loan.note || null,
+      }),
+    })
 
-    if (loanError) { toast.error('บันทึกการคืนไม่สำเร็จ'); setLoading(false); return }
-
-    const newStatus = condition === 'damaged' ? 'maintenance' : 'available'
-    await supabase.from('equipment').update({ status: newStatus, updated_at: now }).eq('id', equipment.id)
+    if (!res.ok) {
+      const { error } = await res.json()
+      toast.error(error ?? 'บันทึกการคืนไม่สำเร็จ')
+      setLoading(false)
+      return
+    }
 
     toast.success(condition === 'damaged'
       ? `"${equipment.name}" คืนแล้ว — ส่งซ่อม`
