@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: false },
   images: {
     remotePatterns: [
       {
@@ -14,5 +12,3 @@ const nextConfig = {
 }
 
 export default nextConfig
-
-import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());

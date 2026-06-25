@@ -1,7 +1,7 @@
 # EquipVault — ระบบยืม-คืนอุปกรณ์
 
 ระบบบริหารจัดการยืม-คืนอุปกรณ์ สำหรับทีม/องค์กรขนาดเล็ก  
-สร้างด้วย **Next.js 14 + Supabase** รองรับมือถือ (PWA) และ Dark Mode
+สร้างด้วย **Next.js 16 + Supabase** รองรับมือถือ (PWA) และ Dark Mode
 
 ---
 
@@ -9,12 +9,12 @@
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14 (App Router) + TypeScript |
+| Frontend | Next.js 16 (App Router) + TypeScript |
 | Styling | Tailwind CSS + Framer Motion |
 | Backend + DB | Supabase (Postgres) |
 | Auth | Supabase Auth (email/password) |
 | Storage | Supabase Storage |
-| Deploy | Vercel |
+| Deploy | Cloudflare Pages |
 
 ---
 
@@ -94,34 +94,18 @@ npm run dev
 
 ---
 
-## 🚀 Deploy ไป Vercel (ฟรี)
-
-### วิธีที่ 1: Vercel CLI
-
-```bash
-npm install -g vercel
-vercel
-
-# ตอบคำถาม:
-# ? Set up and deploy → Yes
-# ? Which scope → (เลือก account ของตัวเอง)
-# ? Link to existing project → No
-# ? Project name → equipment-loan-system
-# ? Directory → ./
-```
-
-หลัง deploy แล้ว เพิ่ม Environment Variables ใน Vercel Dashboard:
-1. ไปที่ Project → **Settings** → **Environment Variables**
-2. เพิ่ม `NEXT_PUBLIC_SUPABASE_URL` และ `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-3. Redeploy
-
-### วิธีที่ 2: GitHub + Vercel Dashboard
+## 🚀 Deploy ไป Cloudflare Pages
 
 1. Push โค้ดขึ้น GitHub Repository
-2. ไปที่ [vercel.com](https://vercel.com) → **New Project**
-3. Import จาก GitHub
-4. เพิ่ม Environment Variables
-5. กด **Deploy**
+2. ไปที่ [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers & Pages** → **Create**
+3. เลือก **Pages** → **Connect to Git** → เลือก repo
+4. ตั้งค่า Build:
+   - **Build command:** `npm run pages:build`
+   - **Build output directory:** `.open-next/assets`
+5. เพิ่ม Environment Variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+6. กด **Save and Deploy**
 
 ---
 
@@ -153,8 +137,10 @@ equipment-loan-system/
 │   ├── manifest.json        # PWA manifest
 │   ├── sw.js                # Service Worker
 │   └── icons/               # App icons
-└── supabase/
-    └── schema.sql           # Database schema + RLS policies
+├── supabase/
+│   └── schema.sql           # Database schema + RLS policies
+├── open-next.config.ts      # Cloudflare deployment config
+└── wrangler.toml            # Cloudflare Pages config
 ```
 
 ---
